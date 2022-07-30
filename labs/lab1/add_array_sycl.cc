@@ -1,10 +1,12 @@
 #include <iostream>
 #include <random>
 #include <vector>
-
+#include <CL/sycl.hpp>
 #include <add_array.hh>
 
 using namespace add_array;
+
+using namespace sycl;
 
 int main() {
 	std::vector<float> A, B, C;
@@ -29,13 +31,25 @@ int main() {
 	for (int i = 1; i < n; i++) {
 		A.push_back(value + 1);
 		B.push_back(value + 1);
+		C.push_back(value + 1);
 	}
+	
 
 	// add the two vectors
   // ...
-	for (int i = 0; i < n; i++)
-		C.push_back(A[i] + B[i]);
-	
+
+	{
+		buffer bufA_b {A}, bufB_b {B}, bufC_b {C};
+		queue q;
+		q.submit([&] (handler &h) {
+			auto A = bufA_b.get_access(h, read_only);
+			auto B = bufB_b.get_access(h, read_only);
+			auto C = bufC_b.get_access(h, write_only);
+			h.parallel_for(n, [=](auto i){
+				C[i] = A[i] + B[i];
+			});
+		});
+	}
 
   // print the first 8 elements
   // ...

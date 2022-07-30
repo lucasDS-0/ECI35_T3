@@ -10,7 +10,7 @@
     #include <CL/sycl/intel/fpga_extensions.hpp>
     namespace INTEL = sycl::intel;  // Namespace alias for backward compatibility
 #else
-    #include <CL/sycl/INTEL/fpga_extensions.hpp>
+    #include <sycl/ext/intel/fpga_extensions.hpp>
 #endif
 
 using namespace sycl;
@@ -22,6 +22,16 @@ using a_pipe = pipe<                 // Defined in the SYCL headers. also ext::i
     pipe_entries>;
 
 // please complete
+
+using b_pipe = pipe<                 // Defined in the SYCL headers. also ext::intel::pipe
+    class b_read_pipe,   // An identifier for the pipe.
+    float,                            // The type of data in the pipe.
+    pipe_entries>;
+
+using c_pipe = pipe<                 // Defined in the SYCL headers. also ext::intel::pipe
+    class c_write_pipe,   // An identifier for the pipe.
+    float,                            // The type of data in the pipe.
+    pipe_entries>;
 
 int main() {
 
@@ -46,15 +56,63 @@ int main() {
     }
 
 #if defined(FPGA_EMULATOR)
-    INTEL::fpga_emulator_selector device_selector;
+    ext::intel::fpga_emulator_selector device_selector;
 #else
-    INTEL::fpga_selector device_selector;
+    ext::intel::fpga_selector device_selector;
 #endif
 
     // property list to enable SYCL profiling for the device queue
     // auto props = property_list{property::queue::enable_profiling()};
 
     // please complete
+
+    queue q(device_selector);
+
+
+    {
+        buffer A_b {A};
+        buffer B_b {B};
+        buffer C_b {C};
+        auto num_elements = A.size();
+
+
+        q.submit([&] (handler &h) {
+            accessor A_a(A_b, h, read_only);
+            
+            h.single_task<class WriteA>([=]() {
+                for (int i = 0; i < num_elements; i++)
+                    a_pipe::write(A_a[i]);
+            });
+        });
+
+        q.submit([&] (handler &h) {
+            accessor B_a(B_b, h, read_only);
+
+            h.single_task<class WriteB>([=]() {
+                for (int i = 0; i < num_elements; i++)
+                    b_pipe::write(B_a[i]);
+            });
+        });
+
+        q.submit([&] (handler &h) {
+            h.single_task<class Sum>([=]() {
+                for (int i = 0; i < num_elements; i++) {
+                    auto sum = a_pipe::read() + b_pipe::read();
+                    c_pipe::write(sum);
+                }
+            });
+        });
+
+        q.submit([&] (handler &h) {
+            accessor C_a(C_b, h, write_only);
+            h.single_task<class WriteC>([=]() {
+                for (int i = 0; i < num_elements; i++) {
+                    auto res = c_pipe::read();
+                    C_a[i] = res;
+                }
+            });
+        });
+    }
 
     for (int i = 0; i < 8; i++) {
       std::cout << "C[" << i << "] = " << C[i] << std::endl;

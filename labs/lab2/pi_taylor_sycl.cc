@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <cmath>
 #include <numeric>
 #include <string>
 #include <thread>
@@ -50,6 +51,27 @@ main(int argc, const char *argv[])
     }
 
     // please complete
+    my_float pi = 0.0;
+    std::vector<my_float> v_pi;
+    v_pi.reserve(steps);
+
+    for (int i = 1; i < steps; i++) {
+ 		v_pi.push_back(0);
+	}
+
+    {
+		sycl::buffer bufpi_b {v_pi};
+		q.submit([&] (sycl::handler &h) {
+			auto v_pi = bufpi_b.get_access(h, sycl::write_only);
+            h.parallel_for(steps, [=](auto i){
+                int sign = i & 0x1 ? -1 : 1;
+				v_pi[i] =sign/static_cast<my_float>(2*i+1);
+			});
+		});
+	}
+    for (int i = 0; i < v_pi.size(); i++) pi += v_pi[i];
+    pi *= 4;
+
 
     std::cout << "For " << steps << " steps, pi value: "
         << std::setprecision(std::numeric_limits<long double>::digits10 + 1)

@@ -1,13 +1,19 @@
 #include <iomanip>
 #include <iostream>
+#include <cmath>
 #include <limits>
 
-using my_float = float;
+using my_float = long double;
 
 auto pi_taylor(size_t steps) -> my_float {
-
-    // please complete
-
+    my_float pi = 0.0;
+    int sign = 1;
+    for (int n = 0; n < steps; n++) {
+        pi+=sign/static_cast<my_float>(2*n+1);
+        sign = -sign;
+    }
+    
+    return 4.0f* pi;
 }
 
 int main(int argc, const char *argv[]) {

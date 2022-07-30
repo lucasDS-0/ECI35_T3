@@ -23,10 +23,28 @@ int main() {
     A.push_back(value);
 
     for(size_t i = 1; i < n; ++i) {
-	A.push_back(A[0] + static_cast<float>(i)/static_cast<float>(n));
+	    A.push_back(A[0] + static_cast<float>(i)/static_cast<float>(n));
     }
 
     // please complete
+
+    sycl::queue q;
+
+    {
+      sycl::buffer A_b {A};
+      sycl::buffer res_b {res};
+
+      q.submit([&] (sycl::handler &h) {
+        sycl::accessor A_a(A_b, h, sycl::read_only);
+        sycl::accessor res_a(res_b, h, sycl::write_only);
+        h.single_task<class naive>([=]() {
+          float mul = 1.0f;
+          for (int i = 0; i < n; i++) mul *= A_a[i];
+          res_a[0] = mul;
+        });
+      });
+
+    }
 
     std::cout << "res[0] = " << res[0] << std::endl;
 }
